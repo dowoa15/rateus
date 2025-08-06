@@ -1,530 +1,669 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RateUS - Система оценки</title>
-    <link href="https://fonts.googleapis.com/css2?family=Geologica:wght@400;500;700&display=swap" rel="stylesheet">
-    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-database-compat.js"></script>
-    <style>
-        :root {
-            --primary-green: #2e7d32;
-            --dark-green: #1b5e20;
-            --light-green: #a5d6a7;
-            --bg-gradient: linear-gradient(to bottom, #a5d6a7, #e8f5e9);
-            --error-red: #e53935;
-            --warning-orange: #fb8c00;
-            --modal-bg: rgba(0,0,0,0.5);
-        }
-        
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-        
-        body {
-            font-family: 'Geologica', sans-serif;
-            background: var(--bg-gradient);
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-            color: #333;
-        }
-        
-        .container {
-            width: 100%;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 10px;
-        }
-        
-        header {
-            margin-bottom: 20px;
-        }
-        
-        .logo {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--primary-green);
-            text-decoration: none;
-        }
-        
-        .rating-header {
-            color: white;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            margin-bottom: 10px;
-        }
-        
-        .rating-header h1 {
-            font-size: 1.8rem;
-            margin-bottom: 5px;
-        }
-        
-        .rating-header h2 {
-            font-size: 1.5rem;
-            font-weight: 500;
-        }
-        
-        .rating-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-        
-        .rating-btn {
-            width: 90px;
-            height: 90px;
-            border-radius: 50%;
-            border: none;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-            color: white;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
-        
-        .rating-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
-        }
-        
-        .angry {
-            background-color: var(--error-red);
-        }
-        
-        .neutral {
-            background-color: var(--warning-orange);
-        }
-        
-        .happy {
-            background-color: var(--primary-green);
-        }
-        
-        .feedback-form {
-            display: none;
-            width: 100%;
-            max-width: 500px;
-            margin: 15px auto 0;
-            animation: fadeIn 0.3s ease;
-        }
-        
-        textarea {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #000;
-            border-radius: 8px;
-            font-family: 'Geologica', sans-serif;
-            font-size: 14px;
-            resize: vertical;
-            min-height: 100px;
-            margin-bottom: 12px;
-            background-color: white;
-            transition: border-color 0.3s;
-        }
-        
-        textarea:focus {
-            border-color: var(--primary-green);
-            outline: none;
-        }
-        
-        .submit-btn {
-            background-color: var(--primary-green);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-family: 'Geologica', sans-serif;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        
-        .submit-btn:hover {
-            background-color: var(--dark-green);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        }
-        
-        .thank-you-message {
-            display: none;
-            background-color: var(--light-green);
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 15px;
-            font-weight: 500;
-            animation: fadeIn 0.5s ease;
-        }
-        
-        .request-list {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-            font-size: 14px;
-        }
-        
-        .request-list th, .request-list td {
-            padding: 8px 10px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-        
-        .request-list th {
-            background-color: var(--primary-green);
-            color: white;
-            font-size: 13px;
-        }
-        
-        .request-list tr:hover {
-            background-color: rgba(0,0,0,0.05);
-        }
-        
-        .copy-link {
-            background-color: #f1f1f1;
-            border: none;
-            padding: 3px 8px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 11px;
-            transition: background-color 0.3s;
-        }
-        
-        .copy-link:hover {
-            background-color: #ddd;
-        }
-        
-        .review-item {
-            background-color: white;
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 12px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            font-size: 14px;
-        }
-        
-        .review-rating {
-            width: 25px;
-            height: 25px;
-            border-radius: 50%;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            margin-right: 8px;
-            font-size: 12px;
-        }
-        
-        .review-content {
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px dashed #ddd;
-        }
-        
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: var(--modal-bg);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-        
-        .modal-content {
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            max-width: 90%;
-            width: 400px;
-            text-align: center;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-        }
-        
-        .modal-close {
-            background-color: var(--primary-green);
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 4px;
-            margin-top: 15px;
-            cursor: pointer;
-        }
-        
-        @media (max-width: 768px) {
-            .rating-btn {
-                width: 80px;
-                height: 80px;
-                font-size: 13px;
-            }
-            
-            .request-list {
-                display: block;
-                overflow-x: auto;
-            }
-            
-            .request-list td {
-                white-space: nowrap;
-            }
-        }
-        
-        @media (max-width: 480px) {
-            .rating-buttons {
-                gap: 10px;
-            }
-            
-            .rating-btn {
-                width: 70px;
-                height: 70px;
-                font-size: 12px;
-            }
-            
-            .container {
-                padding: 5px;
-            }
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .hidden {
-            display: none;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>rateUS - Оценка товара и заявки</title>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Geologica:wght@400;700&display=swap");
+    body {
+      font-family: "Geologica", sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(to bottom, white 10%, #37a636 90%);
+      color: #222;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    h1 {
+      margin-top: 0;
+      font-weight: 700;
+      margin-bottom: 10px;
+      font-size: 2.4rem;
+      user-select: none;
+    }
+    /* --- Оценка товара --- */
+    #rating-section {
+      background: rgba(255 255 255 / 0.9);
+      border-radius: 12px;
+      padding: 20px 25px 30px;
+      max-width: 400px;
+      width: 100%;
+      box-shadow: 0 5px 20px rgb(0 0 0 / 0.1);
+      margin-bottom: 40px;
+    }
+    #rating-section > p {
+      font-size: 1.1rem;
+      margin: 15px 0 10px;
+      color: #222;
+    }
+    .buttons-row {
+      display: flex;
+      justify-content: space-around;
+      margin: 20px 0 10px;
+      gap: 10px;
+    }
+    button.rate-btn {
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      border: none;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      color: white;
+      box-shadow:
+        0 3px 5px rgb(0 0 0 / 0.1);
+    }
+    button.rate-btn:hover:not(:disabled),
+    button.rate-btn:focus-visible:not(:disabled) {
+      outline: none;
+      transform: scale(1.05);
+      box-shadow:
+        0 5px 15px rgb(0 0 0 / 0.15);
+    }
+    button.rate-btn:disabled {
+      opacity: 0.5;
+      cursor: default;
+      transform: none;
+    }
+    /* Красная */
+    #btn-red {
+      background-color: #b92b2b;
+      color: #5a0f0f;
+      font-family: "Geologica", sans-serif;
+    }
+    /* Желтая */
+    #btn-yellow {
+      background-color: #f0ca3b;
+      color: #735f15;
+      font-family: "Geologica", sans-serif;
+    }
+    #btn-yellow p {
+      writing-mode: vertical-lr;
+      transform: rotate(180deg);
+      margin: 0;
+      font-size: 2rem;
+      line-height: 0.7;
+      user-select: none;
+      font-weight: 900;
+      letter-spacing: 0.15em;
+    }
+    /* Зеленая */
+    #btn-green {
+      background-color: #37a636;
+      color: #0e590e;
+      font-family: "Geologica", sans-serif;
+    }
+    #btn-green p {
+      writing-mode: vertical-lr;
+      margin: 0;
+      font-size: 2rem;
+      line-height: 0.7;
+      user-select: none;
+      font-weight: 900;
+      letter-spacing: 0.15em;
+    }
+    /* Текст на кнопках */
+    #btn-red span,
+    #btn-yellow span,
+    #btn-green span {
+      margin-top: 8px;
+      font-size: 14px;
+      user-select: none;
+      font-weight: 600;
+    }
+
+    /* Текстовое поле + кнопка отправить */
+    #feedback-area {
+      margin-top: 10px;
+      display: none;
+      flex-direction: column;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 70px;
+      font-family: "Geologica", sans-serif;
+      font-size: 1rem;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1.5px solid #444;
+      outline-offset: 2px;
+      outline-color: transparent;
+      transition: outline-color 0.3s ease;
+      width: 100%;
+      box-sizing: border-box;
+      margin-bottom: 12px;
+      background: #fff;
+      color: #222;
+    }
+    textarea:focus {
+      outline-color: #37a636;
+    }
+    #send-feedback-btn {
+      align-self: flex-end;
+      background-color: #1f4a0f;
+      border: none;
+      color: white;
+      font-weight: 700;
+      padding: 10px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.25s ease;
+    }
+    #send-feedback-btn:hover:not(:disabled),
+    #send-feedback-btn:focus-visible:not(:disabled) {
+      background-color: #2e6e12;
+      outline: none;
+    }
+    #send-feedback-btn:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+    /* Спасибо за отзыв */
+    #thankyou-msg {
+      margin-top: 12px;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #2f6d12;
+      user-select: none;
+    }
+    /* --- Форма создания заявки --- */
+    #app-section {
+      background: rgba(255 255 255 / 0.95);
+      box-shadow: 0 5px 20px rgb(0 0 0 / 0.1);
+      max-width: 420px;
+      width: 100%;
+      border-radius: 12px;
+      padding: 25px 25px 30px;
+      box-sizing: border-box;
+    }
+    #app-section h2 {
+      font-weight: 700;
+      font-size: 2rem;
+      margin-top: 0;
+      user-select: none;
+      margin-bottom: 20px;
+      color: #37a636;
+      text-align: center;
+    }
+    label {
+      font-size: 1rem;
+      font-weight: 600;
+      display: block;
+      margin-bottom: 6px;
+      user-select: none;
+      color: #222;
+    }
+    select,
+    input[type="text"] {
+      width: 100%;
+      border-radius: 6px;
+      border: 1.5px solid #444;
+      font-family: "Geologica", sans-serif;
+      font-size: 1rem;
+      padding: 8px 10px;
+      margin-bottom: 18px;
+      box-sizing: border-box;
+      outline-offset: 2px;
+      outline-color: transparent;
+      transition: outline-color 0.3s ease;
+    }
+    select:focus,
+    input[type="text"]:focus {
+      outline-color: #37a636;
+    }
+    /* Чекбоксы стиль */
+    .checkbox-group {
+      margin-bottom: 24px;
+      user-select: none;
+    }
+    .checkbox-group label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 500;
+      font-size: 1rem;
+      color: #222;
+      cursor: pointer;
+      user-select: none;
+    }
+    .checkbox-group input[type="checkbox"] {
+      /* Скрываем стандартный чекбокс */
+      appearance: none;
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      border: 2px solid black;
+      border-radius: 4px;
+      outline: none;
+      cursor: pointer;
+      position: relative;
+      transition: background-color 0.3s ease, border-color 0.3s ease;
+      background-color: white;
+    }
+    .checkbox-group input[type="checkbox"]:checked {
+      background-color: #37a636;
+      border-color: #37a636;
+    }
+    .checkbox-group input[type="checkbox"]:checked::after {
+      content: "";
+      position: absolute;
+      left: 6px;
+      top: 2px;
+      width: 6px;
+      height: 12px;
+      border: solid white;
+      border-width: 0 3px 3px 0;
+      transform: rotate(45deg);
+    }
+    /* Кнопка создания заявки */
+    #create-app-btn {
+      width: 100%;
+      background-color: #37a636;
+      color: white;
+      border: none;
+      font-weight: 700;
+      padding: 12px 0;
+      font-size: 1.1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.25s ease;
+      margin-bottom: 10px;
+    }
+    #create-app-btn:hover:not(:disabled),
+    #create-app-btn:focus-visible:not(:disabled) {
+      background-color: #2d8530;
+      outline: none;
+    }
+    #create-app-btn:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+    /* Текст с ссылкой результата */
+    #created-link {
+      font-size: 0.9rem;
+      color: #222;
+      word-break: break-all;
+      margin-top: 12px;
+      font-weight: 600;
+      user-select: text;
+    }
+    /* Секция просмотра отзывов */
+    #reviews-section {
+      background: rgba(255 255 255 / 0.95);
+      max-width: 400px;
+      width: 100%;
+      border-radius: 12px;
+      padding: 20px 20px 25px;
+      box-sizing: border-box;
+      box-shadow: 0 5px 20px rgb(0 0 0 / 0.1);
+      margin-top: 30px;
+      user-select: none;
+    }
+    #reviews-section h2 {
+      margin-top: 0;
+      font-weight: 700;
+      font-size: 1.8rem;
+      margin-bottom: 15px;
+      color: #37a636;
+      text-align: center;
+    }
+    #appIdInput {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1.5px solid #444;
+      font-family: "Geologica", sans-serif;
+      font-size: 1rem;
+      margin-bottom: 12px;
+      box-sizing: border-box;
+      outline-offset: 2px;
+      outline-color: transparent;
+      transition: outline-color 0.3s ease;
+    }
+    #appIdInput:focus {
+      outline-color: #37a636;
+    }
+    #loadReviewsBtn {
+      width: 100%;
+      background-color: #37a636;
+      border: none;
+      padding: 10px 0;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 1rem;
+      color: white;
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.25s ease;
+      margin-bottom: 12px;
+    }
+    #loadReviewsBtn:hover:not(:disabled),
+    #loadReviewsBtn:focus-visible:not(:disabled) {
+      background-color: #2d8530;
+      outline: none;
+    }
+    #loadReviewsBtn:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+    #reviewsList {
+      max-height: 260px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: white;
+      padding: 12px;
+      font-size: 0.95rem;
+      color: #222;
+    }
+    .review-item {
+      padding: 8px 10px;
+      border-bottom: 1px solid #ddd;
+    }
+    .review-item:last-child {
+      border-bottom: none;
+    }
+    .review-rating {
+      font-weight: 700;
+      margin-bottom: 4px;
+      user-select: none;
+    }
+    .review-text {
+      white-space: pre-wrap;
+      user-select: text;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Секция оценки (для клиентов) -->
-        <section id="rating-section" class="hidden">
-            <header>
-                <div class="logo">RateUS</div>
-            </header>
-            
-            <div class="rating-header">
-                <h1>Оцените товар:</h1>
-                <h2 id="product-name"></h2>
-            </div>
-            
-            <div class="rating-buttons">
-                <button class="rating-btn angry" onclick="showFeedback('angry')">Не понравилось</button>
-                <button class="rating-btn neutral" onclick="showFeedback('neutral')">Не очень</button>
-                <button class="rating-btn happy" onclick="showFeedback('happy')">Понравилось</button>
-            </div>
-            
-            <div id="angry-feedback" class="feedback-form">
-                <textarea placeholder="Опишите, чем вам не понравился товар и что нам бы следовало улучшить... (необязательно)"></textarea>
-                <button class="submit-btn" onclick="submitFeedback(1)">Отправить отзыв</button>
-            </div>
-            
-            <div id="neutral-feedback" class="feedback-form">
-                <textarea placeholder="Опишите, чем вам не понравился товар... (необязательно)"></textarea>
-                <button class="submit-btn" onclick="submitFeedback(2)">Отправить отзыв</button>
-            </div>
-            
-            <div id="happy-feedback" class="feedback-form">
-                <textarea placeholder="Напишите, чем вам понравился товар (необязательно)"></textarea>
-                <button class="submit-btn" onclick="submitFeedback(3)">Отправить отзыв</button>
-            </div>
-            
-            <div id="thank-you" class="thank-you-message">
-                Спасибо за ваш отзыв!
-            </div>
-        </section>
-        
-        <!-- Секция списка заявок -->
-        <section id="dashboard" class="hidden">
-            <header>
-                <div class="logo">RateUS</div>
-            </header>
-            
-            <table class="request-list">
-                <thead>
-                    <tr>
-                        <th>Тип</th>
-                        <th>Название</th>
-                        <th>Дата</th>
-                        <th>Ссылка</th>
-                        <th>Действия</th>
-                    </tr>
-                </thead>
-                <tbody id="requests-table-body">
-                    <!-- Заполняется из Firebase -->
-                </tbody>
-            </table>
-        </section>
-        
-        <!-- Модальное окно -->
-        <div id="modal" class="modal">
-            <div class="modal-content">
-                <p id="modal-message"></p>
-                <button class="modal-close" onclick="closeModal()">OK</button>
-            </div>
-        </div>
+  <section id="rating-section" aria-label="Оценка товара">
+    <h1>Оцените товар</h1>
+    <div class="buttons-row" role="radiogroup" aria-labelledby="rating-label">
+      <button id="btn-red" class="rate-btn" aria-pressed="false" aria-label="Не понравилось" data-rating="red">
+        <p style="font-size:3.8rem; line-height:0.8; user-select:none;">😠</p>
+        <span>Не понравилось</span>
+      </button>
+      <button id="btn-yellow" class="rate-btn" aria-pressed="false" aria-label="Не очень" data-rating="yellow">
+        <p>:(</p>
+        <span>Не очень</span>
+      </button>
+      <button id="btn-green" class="rate-btn" aria-pressed="false" aria-label="Понравилось" data-rating="green">
+        <p>:)</p>
+        <span>Понравилось</span>
+      </button>
+    </div>
+    <div id="feedback-area" aria-live="polite">
+      <label id="feedback-label" for="feedback-text"></label>
+      <textarea id="feedback-text" rows="4" placeholder="" aria-describedby="feedback-label"></textarea>
+      <button id="send-feedback-btn" disabled>Отправить отзыв</button>
+    </div>
+    <p id="thankyou-msg" role="alert" style="display:none;">Спасибо за отзыв!</p>
+  </section>
+
+  <section id="app-section" aria-label="Создание заявки в rateUS">
+    <h2>rateUS</h2>
+    <label for="type-select">Выберите тип</label>
+    <select id="type-select" aria-required="true">
+      <option value="" disabled selected>Продукт или услуга</option>
+      <option value="product">Продукт</option>
+      <option value="service">Услуга</option>
+    </select>
+
+    <label for="app-name">Название</label>
+    <input type="text" id="app-name" placeholder="Введите название" aria-required="true" />
+
+    <div class="checkbox-group" role="group" aria-label="Особенности заявки">
+      <label><input type="checkbox" id="check-feature1" /> Особенность 1</label>
+      <label><input type="checkbox" id="check-feature2" /> Особенность 2</label>
+      <label><input type="checkbox" id="check-feature3" /> Особенность 3</label>
     </div>
 
-    <script>
-        // Инициализация Firebase
-        const firebaseConfig = {
-            apiKey: "AIzaSyBnAVJ5m6zmRpWgNPfSUo1V36Qv_f-NiW0",
-            authDomain: "rateus-2d2dc.firebaseapp.com",
-            databaseURL: "https://rateus-2d2dc-default-rtdb.firebaseio.com",
-            projectId: "rateus-2d2dc",
-            storageBucket: "rateus-2d2dc.firebasestorage.app",
-            messagingSenderId: "437127558019",
-            appId: "1:437127558019:web:72c644fee8cd7b0f4e3cb6",
-            measurementId: "G-WJ9E0Z7DM5"
-        };
+    <button id="create-app-btn" disabled>Создать заявку</button>
+    <div id="created-link" aria-live="polite"></div>
+  </section>
 
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
-        
-        let currentUser = localStorage.getItem('rateus_user') || 'user_' + Math.random().toString(36).substr(2, 9);
-        localStorage.setItem('rateus_user', currentUser);
-        
-        const urlParams = new URLSearchParams(window.location.search);
-        const requestId = urlParams.get('id');
-        
-        if (requestId) {
-            showRatingSection(requestId);
-        } else {
-            showDashboard();
-            loadUserRequests();
+  <section id="reviews-section" aria-label="Отзывы по заявке">
+    <h2>Отзывы по заявке</h2>
+    <input type="text" id="appIdInput" placeholder="Введите ID заявки (например: id1234)" />
+    <button id="loadReviewsBtn" disabled>Загрузить отзывы</button>
+    <div id="reviewsList" aria-live="polite" role="list"></div>
+  </section>
+
+  <script type="module">
+    // Firebase SDK v9 modular import
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.24.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.24.0/firebase-analytics.js";
+    import { getDatabase, ref, push, set, onValue, get } from "https://www.gstatic.com/firebasejs/9.24.0/firebase-database.js";
+
+    // Firebase configuration from user
+    const firebaseConfig = {
+      apiKey: "AIzaSyBnAVJ5m6zmRpWgNPfSUo1V36Qv_f-NiW0",
+      authDomain: "rateus-2d2dc.firebaseapp.com",
+      databaseURL: "https://rateus-2d2dc-default-rtdb.firebaseio.com",
+      projectId: "rateus-2d2dc",
+      storageBucket: "rateus-2d2dc.firebasestorage.app",
+      messagingSenderId: "437127558019",
+      appId: "1:437127558019:web:72c644fee8cd7b0f4e3cb6",
+      measurementId: "G-WJ9E0Z7DM5"
+    };
+
+    // Initialize Firebase & services
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const db = getDatabase(app);
+
+    // --- Rate Section ---
+    const btnRed = document.getElementById("btn-red");
+    const btnYellow = document.getElementById("btn-yellow");
+    const btnGreen = document.getElementById("btn-green");
+    const feedbackArea = document.getElementById("feedback-area");
+    const feedbackLabel = document.getElementById("feedback-label");
+    const feedbackText = document.getElementById("feedback-text");
+    const sendFeedbackBtn = document.getElementById("send-feedback-btn");
+    const thankyouMsg = document.getElementById("thankyou-msg");
+
+    let selectedRating = null;
+    let currentAppId = null; // will store last created app id for association
+
+    function resetRatingButtons() {
+      [btnRed, btnYellow, btnGreen].forEach(btn => {
+        btn.setAttribute("aria-pressed", "false");
+      });
+    }
+
+    function setButtonSelected(btn) {
+      resetRatingButtons();
+      btn.setAttribute("aria-pressed", "true");
+    }
+
+    // When rating selected, show feedback area with proper label and placeholder
+    function updateFeedbackArea(rating) {
+      let labelText = "";
+      let placeholder = "";
+      switch (rating) {
+        case "green":
+          labelText = "Напишите, чем вам понравился товар (необязательно)";
+          placeholder = "Ваш отзыв...";
+          break;
+        case "yellow":
+          labelText = "Опишите, чем вам не понравился товар... (необязательно)";
+          placeholder = "Ваш отзыв...";
+          break;
+        case "red":
+          labelText = "Опишите, чем вам не понравился товар и что нам бы следовало улучшить... (необязательно)";
+          placeholder = "Ваш отзыв...";
+          break;
+      }
+      feedbackLabel.textContent = labelText;
+      feedbackText.placeholder = placeholder;
+      feedbackText.value = "";
+      sendFeedbackBtn.disabled = false;
+      thankyouMsg.style.display = "none";
+      feedbackArea.style.display = "flex";
+      feedbackText.focus();
+    }
+
+    // Click handlers for rating buttons
+    [btnRed, btnYellow, btnGreen].forEach((btn) => {
+      btn.addEventListener("click", () => {
+        selectedRating = btn.dataset.rating;
+        setButtonSelected(btn);
+        updateFeedbackArea(selectedRating);
+      });
+    });
+
+    // Send review function (Save review to Firebase DB)
+    sendFeedbackBtn.addEventListener("click", async () => {
+      if (!selectedRating) return;
+      if (!currentAppId) {
+        alert("Сначала создайте заявку, чтобы оставить отзыв.");
+        return;
+      }
+      sendFeedbackBtn.disabled = true;
+      const feedback = feedbackText.value.trim();
+      const reviewData = {
+        rating: selectedRating,
+        feedback: feedback,
+        timestamp: Date.now(),
+      };
+      try {
+        // Save review under /reviews/{appId}
+        const reviewsRef = ref(db, `reviews/${currentAppId}`);
+        await push(reviewsRef, reviewData);
+        thankyouMsg.style.display = "block";
+        // Reset rating selection & feedback
+        selectedRating = null;
+        resetRatingButtons();
+        feedbackArea.style.display = "none";
+        feedbackText.value = "";
+      } catch (e) {
+        alert("Ошибка при отправке отзыва. Попробуйте позже.");
+        sendFeedbackBtn.disabled = false;
+        return;
+      }
+      sendFeedbackBtn.disabled = false;
+    });
+
+    // --- Create Application Section ---
+    const typeSelect = document.getElementById("type-select");
+    const appNameInput = document.getElementById("app-name");
+    const createAppBtn = document.getElementById("create-app-btn");
+    const createdLink = document.getElementById("created-link");
+
+    // Enable button only if type & name filled
+    function updateCreateAppBtnState() {
+      createAppBtn.disabled = !(typeSelect.value && appNameInput.value.trim());
+    }
+    typeSelect.addEventListener("change", updateCreateAppBtnState);
+    appNameInput.addEventListener("input", updateCreateAppBtnState);
+
+    createAppBtn.addEventListener("click", async () => {
+      if (!typeSelect.value || !appNameInput.value.trim()) return;
+      createAppBtn.disabled = true;
+      createdLink.textContent = "Создание заявки...";
+      // Collect checked features
+      const features = [];
+      document.querySelectorAll('.checkbox-group input[type="checkbox"]').forEach(chk => {
+        if (chk.checked) features.push(chk.nextSibling.textContent.trim());
+      });
+      const appData = {
+        type: typeSelect.value,
+        name: appNameInput.value.trim(),
+        features,
+        createdAt: Date.now(),
+      };
+      try {
+        // Save application data to /apps/ (push new id)
+        const appsRef = ref(db, "apps");
+        const newAppRef = await push(appsRef);
+        await set(newAppRef, appData);
+        const newAppId = newAppRef.key;
+        // Show generated link (domen/id)
+        createdLink.textContent = `${location.origin}/${newAppId}`;
+        currentAppId = newAppId;
+
+        // Reset form fields
+        typeSelect.value = "";
+        appNameInput.value = "";
+        document.querySelectorAll('.checkbox-group input[type="checkbox"]').forEach(chk => chk.checked = false);
+        updateCreateAppBtnState();
+      } catch (e) {
+        createdLink.textContent = "Ошибка создания заявки, попробуйте позже.";
+      }
+      createAppBtn.disabled = false;
+    });
+
+    // --- Load reviews section ---
+    const appIdInput = document.getElementById("appIdInput");
+    const loadReviewsBtn = document.getElementById("loadReviewsBtn");
+    const reviewsList = document.getElementById("reviewsList");
+
+    // Enable "load reviews" if input not empty
+    appIdInput.addEventListener("input", () => {
+      loadReviewsBtn.disabled = !appIdInput.value.trim();
+      reviewsList.innerHTML = "";
+    });
+
+    loadReviewsBtn.addEventListener("click", async () => {
+      const id = appIdInput.value.trim();
+      if (!id) return;
+      reviewsList.innerHTML = "Загрузка...";
+      loadReviewsBtn.disabled = true;
+
+      try {
+        const reviewsRef = ref(db, `reviews/${id}`);
+        const snapshot = await get(reviewsRef);
+        if (!snapshot.exists()) {
+          reviewsList.textContent = "Отзывы не найдены.";
+          loadReviewsBtn.disabled = false;
+          return;
         }
-        
-        function showRatingSection(requestId) {
-            document.getElementById('dashboard').classList.add('hidden');
-            document.getElementById('rating-section').classList.remove('hidden');
-            
-            database.ref('requests/' + requestId).once('value')
-                .then(snapshot => {
-                    const request = snapshot.val();
-                    if (request) {
-                        document.getElementById('product-name').textContent = request.name;
-                        document.getElementById('rating-section').dataset.requestId = requestId;
-                    }
-                });
-        }
-        
-        function showDashboard() {
-            document.getElementById('rating-section').classList.add('hidden');
-            document.getElementById('dashboard').classList.remove('hidden');
-        }
-        
-        function showFeedback(type) {
-            document.querySelectorAll('.feedback-form').forEach(form => {
-                form.style.display = 'none';
-            });
-            document.getElementById(`${type}-feedback`).style.display = 'block';
-        }
-        
-        function submitFeedback(rating) {
-            const requestId = document.getElementById('rating-section').dataset.requestId;
-            const feedbackForm = document.querySelector('.feedback-form[style*="display: block"]');
-            const comment = feedbackForm ? feedbackForm.querySelector('textarea').value : '';
-            
-            const newReviewRef = database.ref('reviews').push();
-            const reviewData = {
-                requestId: requestId,
-                rating: rating,
-                comment: comment,
-                createdAt: firebase.database.ServerValue.TIMESTAMP
-            };
-            
-            newReviewRef.set(reviewData)
-                .then(() => {
-                    document.querySelectorAll('.feedback-form').forEach(form => {
-                        form.style.display = 'none';
-                    });
-                    document.getElementById('thank-you').style.display = 'block';
-                    
-                    if (feedbackForm) {
-                        feedbackForm.querySelector('textarea').value = '';
-                    }
-                    
-                    setTimeout(() => {
-                        document.getElementById('thank-you').style.display = 'none';
-                    }, 3000);
-                })
-                .catch(error => {
-                    showModal('Произошла ошибка при отправке отзыва');
-                });
-        }
-        
-        function loadUserRequests() {
-            const requestsRef = database.ref('requests').orderByChild('userId').equalTo(currentUser);
-            
-            requestsRef.on('value', (snapshot) => {
-                const requests = snapshot.val();
-                const tableBody = document.getElementById('requests-table-body');
-                tableBody.innerHTML = '';
-                
-                if (requests) {
-                    Object.keys(requests).forEach(requestId => {
-                        const request = requests[requestId];
-                        const row = document.createElement('tr');
-                        
-                        const date = new Date(request.createdAt);
-                        const formattedDate = date.toLocaleDateString();
-                        const link = window.location.origin + window.location.pathname + '?id=' + requestId;
-                        
-                        row.innerHTML = `
-                            <td>${request.type === 'product' ? 'Товар' : 'Услуга'}</td>
-                            <td>${request.name}</td>
-                            <td>${formattedDate}</td>
-                            <td>
-                                <input type="text" value="${link}" readonly style="width: 120px; font-size: 12px;">
-                                <button class="copy-link" onclick="copyToClipboard(this.previousElementSibling)">Копировать</button>
-                            </td>
-                            <td>
-                                <button style="font-size: 12px; padding: 3px 6px;" onclick="window.location.href='?id=${requestId}'">Оценить</button>
-                            </td>
-                        `;
-                        
-                        tableBody.appendChild(row);
-                    });
-                } else {
-                    tableBody.innerHTML = '<tr><td colspan="5">Нет заявок</td></tr>';
-                }
-            });
-        }
-        
-        function copyToClipboard(element) {
-            if (typeof element === 'string') {
-                element = document.getElementById(element);
-            }
-            element.select();
-            document.execCommand('copy');
-            showModal('Ссылка скопирована в буфер обмена');
-        }
-        
-        function showModal(message) {
-            document.getElementById('modal-message').textContent = message;
-            document.getElementById('modal').style.display = 'flex';
-        }
-        
-        function closeModal() {
-            document.getElementById('modal').style.display = 'none';
-        }
-    </script>
+        const data = snapshot.val();
+        const html = Object.entries(data)
+          .sort(([, a], [, b]) => b.timestamp - a.timestamp)
+          .map(([, review]) => {
+            // human-readable date
+            let ratingText = {
+              green: "Понравилось",
+              yellow: "Не очень",
+              red: "Не понравилось"
+            }[review.rating] || review.rating;
+            let feedbackText = review.feedback || "(без комментариев)";
+            return `<div class="review-item" role="listitem">
+              <div class="review-rating">Оценка: ${ratingText}</div>
+              <div class="review-text">${escapeHTML(feedbackText)}</div>
+            </div>`;
+          })
+          .join("");
+        reviewsList.innerHTML = html;
+      } catch (e) {
+        reviewsList.textContent = "Ошибка загрузки отзывов.";
+      }
+      loadReviewsBtn.disabled = false;
+    });
+
+    // Escape HTML helper to prevent XSS in feedback display
+    function escapeHTML(str) {
+      if (!str) return "";
+      return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+  </script>
 </body>
 </html>
