@@ -7,6 +7,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Geologica:wght@400;500;700&display=swap" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-database-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         :root {
             --primary-green: #2e7d32;
@@ -338,6 +340,49 @@
         .hidden {
             display: none;
         }
+        
+        /* Новые стили для QR-кода */
+        .qr-section {
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .qr-code-container {
+            margin: 20px auto;
+            padding: 10px;
+            background: white;
+            display: inline-block;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .qr-actions {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .qr-btn {
+            background-color: var(--primary-green);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-family: 'Geologica', sans-serif;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .qr-btn:hover {
+            background-color: var(--dark-green);
+        }
+        
+        .already-reviewed {
+            color: var(--error-red);
+            font-weight: 500;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -389,7 +434,16 @@
                     <input type="text" id="generated-link" readonly>
                     <button class="copy-link" onclick="copyToClipboard('generated-link')">Копировать</button>
                 </div>
-                <p>Отправьте эту ссылку вашим клиентам для оценки</p>
+                <div class="qr-section">
+                    <div class="qr-code-container">
+                        <div id="qr-code"></div>
+                    </div>
+                    <div class="qr-actions">
+                        <button class="qr-btn" onclick="downloadQR('png')">Скачать PNG</button>
+                        <button class="qr-btn" onclick="downloadQR('pdf')">Скачать PDF</button>
+                    </div>
+                </div>
+                <p>Отправьте эту ссылку или QR-код вашим клиентам для оценки</p>
             </div>
         </section>
         
@@ -417,7 +471,11 @@
         <section id="rating-section" class="section hidden">
             <h1 id="rating-title">Оцените товар</h1>
             
-            <div class="rating-buttons">
+            <div id="already-reviewed" class="already-reviewed hidden">
+                Вы уже оставили отзыв на этот товар. Спасибо!
+            </div>
+            
+            <div id="rating-buttons" class="rating-buttons">
                 <button class="rating-btn angry" onclick="showFeedback('angry')">Не понравилось</button>
                 <button class="rating-btn neutral" onclick="showFeedback('neutral')">Не очень</button>
                 <button class="rating-btn happy" onclick="showFeedback('happy')">Понравилось</button>
@@ -460,7 +518,7 @@
             authDomain: "rateus-2d2dc.firebaseapp.com",
             databaseURL: "https://rateus-2d2dc-default-rtdb.firebaseio.com",
             projectId: "rateus-2d2dc",
-            storageBucket: "rateus-2d2dc.firebasestorage.app",
+            storageBucket: "rateus-2d2dc.appspot.com",
             messagingSenderId: "437127558019",
             appId: "1:437127558019:web:72c644fee8cd7b0f4e3cb6",
             measurementId: "G-WJ9E0Z7DM5"
@@ -479,11 +537,50 @@
         const requestId = urlParams.get('id');
         
         if (requestId) {
-            // Режим оценки
-            showRatingSection(requestId);
+            // Режим оценки - проверяем, не оставлял ли уже пользователь отзыв
+            checkIfAlreadyReviewed(requestId);
         } else {
             // Режим кабинета
             loadUserRequests();
+        }
+        
+        // Проверяем, оставлял ли уже пользователь отзыв на этот товар
+        function checkIfAlreadyReviewed(requestId) {
+            // Используем localStorage для хранения информации об оставленных отзывах
+            const reviewedItems = JSON.parse(localStorage.getItem('reviewed_items') || '{}');
+            
+            if (reviewedItems[requestId]) {
+                // Пользователь уже оставлял отзыв
+                showRatingSection(requestId, true);
+            } else {
+                // Проверяем в Firebase (на случай, если пользователь очистил localStorage)
+                database.ref('reviews').orderByChild('requestId').equalTo(requestId).once('value')
+                    .then(snapshot => {
+                        let alreadyReviewed = false;
+                        const reviews = snapshot.val();
+                        
+                        if (reviews) {
+                            Object.keys(reviews).forEach(reviewId => {
+                                const review = reviews[reviewId];
+                                if (review.userId === getClientId()) {
+                                    alreadyReviewed = true;
+                                }
+                            });
+                        }
+                        
+                        showRatingSection(requestId, alreadyReviewed);
+                    });
+            }
+        }
+        
+        // Получаем уникальный идентификатор клиента (используется для защиты от спама)
+        function getClientId() {
+            let clientId = localStorage.getItem('rateus_client_id');
+            if (!clientId) {
+                clientId = 'client_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('rateus_client_id', clientId);
+            }
+            return clientId;
         }
         
         // Обработчик формы создания заявки
@@ -511,6 +608,9 @@
                     document.getElementById('generated-link').value = link;
                     document.getElementById('request-result').classList.remove('hidden');
                     
+                    // Генерируем QR-код
+                    generateQRCode(link, 'qr-code');
+                    
                     // Обновляем список заявок
                     loadUserRequests();
                 })
@@ -519,6 +619,47 @@
                     alert('Произошла ошибка при создании заявки');
                 });
         });
+        
+        // Генерация QR-кода
+        function generateQRCode(text, elementId) {
+            const qr = qrcode(0, 'L');
+            qr.addData(text);
+            qr.make();
+            document.getElementById(elementId).innerHTML = qr.createImgTag(5);
+        }
+        
+        // Скачивание QR-кода
+        function downloadQR(format) {
+            const link = document.getElementById('generated-link').value;
+            const qrElement = document.querySelector('#qr-code img');
+            
+            if (format === 'png') {
+                // Создаем временную ссылку для скачивания PNG
+                const a = document.createElement('a');
+                a.href = qrElement.src;
+                a.download = 'qr-code.png';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            } else if (format === 'pdf') {
+                // Используем jsPDF для создания PDF
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                // Добавляем текст
+                doc.setFontSize(16);
+                doc.text('Ссылка для оценки:', 10, 10);
+                doc.setFontSize(12);
+                doc.text(link, 10, 20);
+                
+                // Добавляем QR-код
+                const qrData = qrElement.src.split(',')[1];
+                doc.addImage(qrData, 'PNG', 50, 30, 100, 100);
+                
+                // Сохраняем PDF
+                doc.save('qr-code.pdf');
+            }
+        }
         
         // Загрузка заявок пользователя
         function loadUserRequests() {
@@ -566,7 +707,7 @@
         }
         
         // Показ секции оценки
-        function showRatingSection(requestId) {
+        function showRatingSection(requestId, alreadyReviewed = false) {
             // Скрываем все секции кабинета
             document.querySelectorAll('.section').forEach(section => {
                 section.classList.remove('active');
@@ -576,6 +717,16 @@
             // Показываем секцию оценки
             document.getElementById('rating-section').classList.remove('hidden');
             document.getElementById('rating-section').classList.add('active');
+            
+            if (alreadyReviewed) {
+                // Пользователь уже оставлял отзыв
+                document.getElementById('already-reviewed').classList.remove('hidden');
+                document.getElementById('rating-buttons').classList.add('hidden');
+            } else {
+                // Пользователь может оставить отзыв
+                document.getElementById('already-reviewed').classList.add('hidden');
+                document.getElementById('rating-buttons').classList.remove('hidden');
+            }
             
             // Загружаем информацию о заявке
             database.ref('requests/' + requestId).once('value')
@@ -605,6 +756,7 @@
             const requestId = document.getElementById('rating-section').dataset.requestId;
             const feedbackForm = document.querySelector('.feedback-form[style*="display: block"]');
             const comment = feedbackForm ? feedbackForm.querySelector('textarea').value : '';
+            const clientId = getClientId();
             
             // Создаем новый отзыв в Firebase
             const newReviewRef = database.ref('reviews').push();
@@ -612,16 +764,23 @@
                 requestId: requestId,
                 rating: rating,
                 comment: comment,
-                createdAt: firebase.database.ServerValue.TIMESTAMP
+                createdAt: firebase.database.ServerValue.TIMESTAMP,
+                userId: clientId // Сохраняем идентификатор клиента для защиты от спама
             };
             
             newReviewRef.set(reviewData)
                 .then(() => {
+                    // Сохраняем информацию о том, что пользователь уже оставил отзыв
+                    const reviewedItems = JSON.parse(localStorage.getItem('reviewed_items') || '{}');
+                    reviewedItems[requestId] = true;
+                    localStorage.setItem('reviewed_items', JSON.stringify(reviewedItems));
+                    
                     // Скрываем форму и показываем сообщение
                     document.querySelectorAll('.feedback-form').forEach(form => {
                         form.style.display = 'none';
                     });
                     document.getElementById('thank-you').style.display = 'block';
+                    document.getElementById('rating-buttons').classList.add('hidden');
                     
                     // Очищаем текстовое поле
                     if (feedbackForm) {
@@ -752,4 +911,4 @@
         });
     </script>
 </body>
-</html>
+    </html>
